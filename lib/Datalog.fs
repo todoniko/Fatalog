@@ -20,3 +20,7 @@ type Predicate = string
 type Literal = Predicate * Term list
 type Clause = { Head: Literal; Body: Literal list }
 type Program = Clause list
+
+module Make =
+    let literal (p: Predicate) (terms: Term list) : Literal = (p, terms)
+    let clause (head: Literal) (body: Literal list) : Clause = { Head = head; Body = body }
