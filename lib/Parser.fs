@@ -24,12 +24,12 @@ module Parser =
     // p(t1,...,tn)
     let private literal =
         let terms = between lbracket rbracket (sepBy (sym <|> var) comma)
-        pipe2 identifier terms DSL.Make.literal
+        pipe2 identifier terms DSL.Literal.make
 
     // l0 :- l1,...,ln
     let private clause =
         let body = horn >>. (sepBy literal comma)
-        pipe2 literal (body <|>% []) DSL.Make.clause
+        pipe2 literal (body <|>% []) DSL.Clause.make
 
     // c1,...,cn
     let program: Parser<_, unit> = sepEndBy1 (clause .>> clausend) spaces
