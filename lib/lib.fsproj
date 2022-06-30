@@ -8,6 +8,7 @@
   <ItemGroup>
     <Compile Include="Datalog.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="Env.fs" />
     <Compile Include="Interpreter.fs" />
   </ItemGroup>
 

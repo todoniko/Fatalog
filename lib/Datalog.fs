@@ -22,23 +22,36 @@ type Clause = { Head: Literal; Body: Literal list }
 type Program = Clause list
 type Knowledge = Literal list
 
+module Term =
+    let inline isVar term =
+        match term with
+        | Var _ -> true
+        | _ -> false
+
 module Literal =
     let make (p: Predicate) (terms: Term list) : Literal = (p, terms)
 
-    let inline extractVars ((_, terms): Literal) =
-        terms
-        |> List.filter (function
-            | Var _ -> true
-            | _ -> false)
-        |> List.distinct
+    let inline vars ((_, terms): Literal) =
+        terms |> List.filter Term.isVar |> List.distinct
 
-    let inline map (f: Term -> Term) ((predicate, terms): Literal) : Literal = (predicate, List.map f terms)
+    let inline ground (f: Term -> Term) ((predicate, terms): Literal) : Literal =
+        (predicate,
+         List.map
+             (function
+             | Sym _ as sym -> sym
+             | v -> f v)
+             terms)
+
+    let inline tryMatch f l1 l2 =
+        match l1, l2 with
+        | ((predicate, terms), (predicate', terms')) when predicate = predicate' -> f terms terms'
+        | _ -> None
 
 module Clause =
-    let inline isRangeRestricted { Head = head; Body = body } =
-        let bodyVars = List.map Literal.extractVars body |> List.concat in
+    let inline private isRangeRestricted { Head = head; Body = body } =
+        let bodyVars = List.map Literal.vars body |> List.concat in
 
-        Literal.extractVars head
+        Literal.vars head
         |> List.forall (fun headVar -> List.contains headVar bodyVars)
 
     let make (head: Literal) (body: Literal list) : Clause =
@@ -49,11 +62,16 @@ module Clause =
         else
             failwith $"Variables in {head} do not appear in {body}"
 
+    let inline head { Head = head; Body = _ } : Literal = head
+    let inline body { Head = _; Body = body } : Literal list = body
+
+module Program =
+    let inline eval (f: Literal -> list<Literal> -> Knowledge) (p: Program) : Knowledge =
+        List.map (fun x -> f (Clause.head x) (Clause.body x)) p
+        |> List.concat
+
 module Knowledge =
     let empty: Knowledge = []
 
-    let inline infer (eval: Clause -> Knowledge) clauses facts : Knowledge =
-        List.map eval clauses
-        |> List.concat
-        |> List.append facts
-        |> List.distinct
+    let inline merge (known: Knowledge) (inferred: Knowledge) : Knowledge =
+        inferred |> List.append known |> List.distinct
