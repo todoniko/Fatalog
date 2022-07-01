@@ -4,8 +4,41 @@ open Fatalog.DSL
 open Fatalog.Interpreter
 open Xunit
 
-module Clique =
+[<AutoOpen>]
+module Helpers =
     let edge = Literal.make "edge"
+
+module TransitiveClosure =
+    let path = Literal.make "path"
+
+    let graph =
+        [ edge [ Sym "a"; Sym "b" ]
+          edge [ Sym "b"; Sym "c" ]
+          edge [ Sym "c"; Sym "d" ] ]
+        |> List.map (fun lit -> Clause.make lit [])
+
+    let rules =
+        let x, y, z = (Var "x", Var "y", Var "z") in
+
+        [ Clause.make (path [ x; y ]) [ edge [ x; y ] ]
+          Clause.make (path [ x; z ]) [ edge [ x; y ]; path [ y; z ] ] ]
+
+    [<Fact>]
+    let ``transitive closure of a--b--c--d`` () =
+        Assert.Equal<Knowledge>(
+            Naive.solve (rules @ graph),
+            [ ("edge", [ Sym "a"; Sym "b" ])
+              ("edge", [ Sym "b"; Sym "c" ])
+              ("edge", [ Sym "c"; Sym "d" ])
+              ("path", [ Sym "a"; Sym "b" ])
+              ("path", [ Sym "b"; Sym "c" ])
+              ("path", [ Sym "c"; Sym "d" ])
+              ("path", [ Sym "a"; Sym "c" ])
+              ("path", [ Sym "b"; Sym "d" ])
+              ("path", [ Sym "a"; Sym "d" ]) ]
+        )
+
+module Clique =
     let tri_clique = Literal.make "tri_clique"
     let quad_clique = Literal.make "quad_clique"
 
