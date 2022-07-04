@@ -17,25 +17,80 @@ module TransitiveClosure =
           edge [ Sym "c"; Sym "d" ] ]
         |> List.map (fun lit -> Clause.make lit [])
 
-    let rules =
+    let result_kb =
+        [ ("edge", [ Sym "a"; Sym "b" ])
+          ("edge", [ Sym "b"; Sym "c" ])
+          ("edge", [ Sym "c"; Sym "d" ])
+          ("path", [ Sym "a"; Sym "b" ])
+          ("path", [ Sym "b"; Sym "c" ])
+          ("path", [ Sym "c"; Sym "d" ])
+          ("path", [ Sym "a"; Sym "c" ])
+          ("path", [ Sym "b"; Sym "d" ])
+          ("path", [ Sym "a"; Sym "d" ]) ]
+
+    let ``edge is path`` =
+        let x, y = (Var "x", Var "y") in Clause.make (path [ x; y ]) [ edge [ x; y ] ]
+
+
+    let non_linear =
         let x, y, z = (Var "x", Var "y", Var "z") in
 
-        [ Clause.make (path [ x; y ]) [ edge [ x; y ] ]
+        [ ``edge is path``
           Clause.make (path [ x; z ]) [ edge [ x; y ]; path [ y; z ] ] ]
 
     [<Fact>]
-    let ``transitive closure of a--b--c--d`` () =
+    let ``transitive closure of a--b--c--d left linear computation`` () =
+        let left_linear =
+            let x, y, z = (Var "x", Var "y", Var "z") in
+
+            [ ``edge is path``
+              Clause.make (path [ x; z ]) [ edge [ x; y ]; path [ y; z ] ] ] in
+
+        Assert.Equal<Knowledge>(Naive.solve (left_linear @ graph), result_kb)
+
+    [<Fact>]
+    let ``transitive closure of a--b--c--d right linear computation`` () =
+        let right_linear =
+            let x, y, z = (Var "x", Var "y", Var "z") in
+
+            [ ``edge is path``
+              Clause.make (path [ x; z ]) [ path [ x; y ]; edge [ y; z ] ] ] in
+
+        Assert.Equal<Knowledge>(Naive.solve (right_linear @ graph), result_kb)
+
+    [<Fact>]
+    let ``transitive closure of a--b--c--d non linear computation`` () =
+        let non_linear =
+            let x, y, z = (Var "x", Var "y", Var "z") in
+
+            [ ``edge is path``
+              Clause.make (path [ x; z ]) [ path [ x; y ]; path [ y; z ] ] ] in
+
+        Assert.Equal<Knowledge>(Naive.solve (non_linear @ graph), result_kb)
+
+    [<Fact>]
+    let ``even or odd path in a--b--c--d`` () =
+        let mutial_recursion =
+            let x, y, z = (Var "x", Var "y", Var "z") in
+            let odd = Literal.make "odd" in
+            let even = Literal.make "even" in
+            let edge = Literal.make "edge" in
+
+            [ Clause.make (odd [ x; y ]) [ edge [ x; y ] ]
+              Clause.make (even [ x; z ]) [ edge [ x; y ]; odd [ y; z ] ]
+              Clause.make (odd [ x; z ]) [ edge [ x; y ]; even [ y; z ] ] ] in
+
         Assert.Equal<Knowledge>(
-            Naive.solve (rules @ graph),
+            Naive.solve (mutial_recursion @ graph),
             [ ("edge", [ Sym "a"; Sym "b" ])
               ("edge", [ Sym "b"; Sym "c" ])
               ("edge", [ Sym "c"; Sym "d" ])
-              ("path", [ Sym "a"; Sym "b" ])
-              ("path", [ Sym "b"; Sym "c" ])
-              ("path", [ Sym "c"; Sym "d" ])
-              ("path", [ Sym "a"; Sym "c" ])
-              ("path", [ Sym "b"; Sym "d" ])
-              ("path", [ Sym "a"; Sym "d" ]) ]
+              ("odd", [ Sym "a"; Sym "b" ])
+              ("odd", [ Sym "b"; Sym "c" ])
+              ("odd", [ Sym "c"; Sym "d" ])
+              ("even", [ Sym "a"; Sym "c" ])
+              ("even", [ Sym "b"; Sym "d" ])
+              ("odd", [ Sym "a"; Sym "d" ]) ]
         )
 
 module Clique =
